@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
+using UnityEngine.SceneManagement;
 
 public class Movement : MonoBehaviour
 {
@@ -10,6 +11,7 @@ public class Movement : MonoBehaviour
     [HideInInspector]
     public Rigidbody2D rb;
     private AnimationScript anim;
+    private List<Vector3> playerPositions = new List<Vector3>();
 
     [Space]
     [Header("Stats")]
@@ -45,12 +47,52 @@ public class Movement : MonoBehaviour
     public float coyoteTime = 0.2f;
     private float coyoteTimeCounter;
 
+    [Space]
+    [Header("Enemy")]
+    public GameObject enemyPrefab;
+    public float enemySpawnDelay = 2f;
+    private EnemyController enemyInstance;
+    private bool isEnemySpawned = false;
+
     void Start()
     {
         coll = GetComponent<Collision>();
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponentInChildren<AnimationScript>();
+
+        StartCoroutine(RecordPositions());
+        
     }
+
+    public void SpawnEnemy()
+    {
+        isEnemySpawned = true;
+
+        GameObject enemy = Instantiate(enemyPrefab, playerPositions[0], Quaternion.identity);
+        enemyInstance = enemy.GetComponent<EnemyController>();
+        enemyInstance.Init(playerPositions, this);
+    }
+
+    private IEnumerator RecordPositions()
+    {
+        while (true)
+        {
+            playerPositions.Add(transform.position);
+
+            if (playerPositions.Count > 500)
+            {
+                playerPositions.RemoveAt(0);
+
+                if (enemyInstance != null)
+                {
+                    enemyInstance.DecreaseIndex();
+                }
+            }
+
+            yield return new WaitForSeconds(0.02f);
+        }
+    }
+
 
     void Update()
     {
@@ -165,6 +207,13 @@ public class Movement : MonoBehaviour
             side = -1;
             anim.Flip(side);
         }
+
+        Scene currentScene = SceneManager.GetActiveScene();
+
+        if (!isEnemySpawned && Time.timeSinceLevelLoad >= enemySpawnDelay && currentScene.name != "Level1")
+        {
+            SpawnEnemy();
+        }
     }
 
     void GroundTouch()
@@ -181,7 +230,6 @@ public class Movement : MonoBehaviour
     {
         Camera.main.transform.DOComplete();
         Camera.main.transform.DOShakePosition(.2f, .5f, 14, 90, false, true);
-        //FindObjectOfType<RippleEffect>().Emit(Camera.main.WorldToViewportPoint(transform.position));
         FindObjectOfType<RippleEffect>().Emit(transform.position);
 
         hasDashed = true;

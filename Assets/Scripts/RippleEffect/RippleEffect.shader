@@ -36,7 +36,6 @@
     {
         float d = length(position - origin);
         
-        // Limitar el efecto al radio definido
         if (d > _EffectRadius) return 0;
 
         float t = time - d * _Params1.z;
